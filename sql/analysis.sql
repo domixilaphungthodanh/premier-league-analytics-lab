@@ -12,3 +12,10 @@ SELECT t.name,COUNT(*) played,SUM(gf) gf,SUM(ga) ga,
 SUM(CASE WHEN gf>ga THEN 3 WHEN gf=ga THEN 1 ELSE 0 END) points
 FROM sides s JOIN teams t USING(team_id) GROUP BY t.team_id,t.name
 ORDER BY points DESC,SUM(gf-ga) DESC,SUM(gf) DESC,t.name;
+
+-- Chạy sau khi tải kiểm soát bóng (menu 7). Trận thiếu/xung đột giữ NULL.
+WITH sides AS (
+ SELECT m.home_team_id team_id,p.home_bp bp FROM matches m LEFT JOIN match_possession p USING(match_id)
+ UNION ALL SELECT m.away_team_id,p.away_bp FROM matches m LEFT JOIN match_possession p USING(match_id))
+SELECT t.name,COUNT(s.bp) possession_matches,AVG(s.bp)/100.0 avg_possession_pct
+FROM teams t LEFT JOIN sides s USING(team_id) GROUP BY t.team_id,t.name;

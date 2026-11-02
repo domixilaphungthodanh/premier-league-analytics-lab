@@ -20,3 +20,12 @@ erDiagram
 `standings`: một dòng mỗi đội, `rank` dùng RANK theo điểm/GD/GF; hòa cả ba giữ chung hạng. `home_away`: một đội + một loại sân. `last5_form`: một đội, tối đa5 trận đến mốc, `recent_played` là mẫu số thật. `monthly`: một tháng trong mùa, tháng chưa đến mốc giữ trống; tháng đã quan sát không trận là0.
 
 NULL không phải 0. Không JOIN đội với toàn lịch sử rồi SUM lại điểm bảng đội. Bảng mùa thật được kiểm tra đủ20đội/380trận, mỗi đội19sân nhà19khách và mỗi cặp có đúng hai lượt đảo sân.
+
+## Kiểm soát bóng bổ sung (v1.1)
+
+- `possession_sources`: một file nguồn, URL chốt commit, SHA256 và thời điểm nhập UTC; 38 file GW + teams.csv. Không ghép bằng tên gần giống; ánh xạ rõ Man Utd → Man United, Spurs → Tottenham; mã `code` của teams.csv là mã trong nguồn trận phụ, không phải `id` hoặc khóa nội bộ.
+- `match_possession`: tối đa một dòng mỗi match_id, FK đến trận, file/dòng gốc và mã trận nguồn phụ; `home_bp`/`away_bp` lưu phần trăm bằng số nguyên 0,01 điểm phần trăm. 6360 = 63,60%. Hai phía hợp lệ cộng 10000.
+- `status`: valid, missing hoặc score_conflict. Dòng thiếu/xung đột lưu cả hai tỷ lệ NULL, kèm reason; không giả dữ liệu. Mọi thay đổi bảng bổ sung và nhập 380 dòng trong cùng transaction; không ghi đè kết quả trận chính.
+- `avg_possession_pct`: trung bình cộng các trận hợp lệ, không trọng số thời gian; `possession_matches`: số trận được dùng; `possession_missing`: số đã đá đến mốc trừ số được dùng. AVG bỏ qua NULL; tất cả NULL giữ trung bình NULL.
+- Snapshot này có 379 valid, một score_conflict: Liverpool–Man United 19/10/2025, tỷ số phụ 0–1 trong khi nguồn chính 1–2. Không khẳng định tỷ lệ bản ghi xung đột đúng toàn trận. Giữ cách ly cho đến khi có nguồn được đối chiếu lại.
+- Báo cáo lịch sử lọc theo ngày trận đến hết ngày chọn; ngày lấy snapshot không có nghĩa đây là dữ liệu đã có sẵn ở thời điểm lịch sử đó.

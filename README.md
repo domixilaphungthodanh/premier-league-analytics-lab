@@ -46,6 +46,23 @@ CSV chỉ được nhập nếu hash và kiểm tra toàn mùa đều đúng. Kh
 
 ## Bạn sẽ nhận được gì?
 
+### Mới: kiểm soát bóng trung bình (%)
+
+Trong menu chọn **8** để xem bảng dễ đọc, hoặc **4** để so sánh hai đội, gồm toàn bộ/sân nhà/sân khách. Nếu chưa nhập nguồn bổ sung, chọn **7** để tải một lần, hoặc chạy:
+
+```powershell
+python src/prepare_data.py --possession
+python src/analyze.py
+```
+
+Nguồn bổ sung: [FPL Core Insights](https://github.com/olbauday/FPL-Core-Insights), chốt commit và SHA256 của 39 file tại [manifest](docs/possession_source.json). Ghép theo mã đội đã ánh xạ, cặp chủ–khách, ngày và đối chiếu tỷ số; không suy từ cú sút hoặc tỷ số.
+
+**TB = tổng tỷ lệ kiểm soát bóng từng trận hợp lệ / số trận có dữ liệu hợp lệ**, mỗi trận có trọng số bằng nhau. Làm tròn hai chữ số chỉ khi hiển thị. Không gọi đây là tỷ lệ tính từ tổng thời gian kiểm soát bóng vì không có thời gian đó.
+
+Đã đối chiếu **380 trận**, dùng được **379**. Trận Liverpool–Man United 19/10/2025 có tỷ số nguồn phụ khác nguồn chính nên cách ly tỷ lệ trận đó: hai đội dùng **37/38 trận**; các đội khác **38/38 trận** ở mốc hết mùa. Hiển thị rõ số trận có dữ liệu và thiếu/xung đột. Không tự sửa nguồn hoặc gán thiếu thành 0. Tại mốc lịch sử, mẫu số chỉ gồm trận đến mốc. Không trộn số trung bình nguyên mùa vào báo cáo nửa mùa.
+
+`standings.csv`, `home_away.csv` thêm `avg_possession_pct`, `possession_matches`, `possession_missing`; `team_matches.csv` thêm `possession_pct`. Báo cáo có bảng theo đội; vẫn giữ 4 PNG/6 CSV. Không có nguồn bổ sung thì cột tỷ lệ trống, không làm hỏng dữ liệu gốc. Mã MIT không thay giấy phép dữ liệu bên thứ ba; ghi nguồn FPL Core Insights khi chia sẻ.
+
 - Bảng điểm, W/D/L, bàn thắng/thua, hiệu số, điểm; lịch sử theo đội và so sánh hai đội.
 - Sân nhà/sân khách, tối đa năm trận gần nhất tại mốc.
 - **4 PNG**: điểm theo đội, điểm sân nhà/sân khách, bàn thắng theo tháng, cú sút so với bàn thắng.

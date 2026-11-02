@@ -37,7 +37,18 @@ def quality(db):
         from .download import SHA256
         if len(source)!=1 or source[0][2]!=SHA256:raise ValueError('Nguồn không đúng snapshot đã chốt')
     missing=int(rows[['home_'+s for s in STATS]+['away_'+s for s in STATS]].isna().sum().sum())
-    return pd.DataFrame([{'check':'matches','value':380},{'check':'teams','value':20},{'check':'duplicate_pair','value':0},{'check':'optional_stat_missing_cells','value':missing},{'check':'foreign_key_errors','value':0}])
+    checks=[{'check':'matches','value':380},{'check':'teams','value':20},{'check':'duplicate_pair','value':0},{'check':'optional_stat_missing_cells','value':missing},{'check':'foreign_key_errors','value':0}]
+    from .possession import available,manifest
+    with connect(db) as c:
+        if available(c):
+            records=c.execute('SELECT status,COUNT(*) FROM match_possession GROUP BY status').fetchall()
+            if sum(n for _,n in records)!=380:raise ValueError('Bổ sung kiểm soát bóng phải đối chiếu đủ 380 trận')
+            expected={(e['file_name'],e['url'],e['sha256'],manifest()['commit']) for e in manifest()['files']}
+            actual=set(c.execute('SELECT file_name,url,sha256,source_commit FROM possession_sources').fetchall())
+            if expected!=actual:raise ValueError('Nguồn kiểm soát bóng không khớp snapshot')
+            checks.extend({'check':'possession_'+status+'_matches','value':count} for status,count in records)
+        else:checks.append({'check':'possession_not_loaded','value':1})
+    return pd.DataFrame(checks)
 def queries(db,as_of=None):
     as_of=scope(db,as_of);p={'as_of':as_of};cte=team_cte()
     with connect(db) as c:
@@ -60,7 +71,8 @@ def queries(db,as_of=None):
     for col in ['matches','goals']:
         monthly[col]=monthly[col].astype('Int64')
         monthly.loc[monthly.month<=as_of[:7],col]=monthly.loc[monthly.month<=as_of[:7],col].fillna(0)
-    return {'standings':table,'team_matches':tm,'home_away':venue,'last5_form':form,'monthly':monthly}
+    from .possession import enrich_sql
+    return enrich_sql(db,{'standings':table,'team_matches':tm,'home_away':venue,'last5_form':form,'monthly':monthly},as_of)
 def pandas_tables(db,as_of):
     # Reads only original source tables, not SQL aggregates or team-match view.
     with connect(db) as c:
@@ -87,11 +99,15 @@ def pandas_tables(db,as_of):
     monthly=monthly.merge(agg,on='month',how='left')
     for col in ['matches','goals']:
         monthly[col]=monthly[col].astype('Int64');monthly.loc[monthly.month<=as_of[:7],col]=monthly.loc[monthly.month<=as_of[:7],col].fillna(0)
-    return {'standings':table,'team_matches':x[cols+['name','opponent']],'home_away':venue,'last5_form':form,'monthly':monthly}
+    from .possession import enrich_pandas
+    return enrich_pandas(db,{'standings':table,'team_matches':x[cols+['name','opponent']],'home_away':venue,'last5_form':form,'monthly':monthly},as_of)
 def reconcile(db,as_of=None):
     quality(db);as_of=scope(db,as_of);sql=queries(db,as_of);other=pandas_tables(db,as_of)
     for name in sql:
         a=sql[name].reset_index(drop=True);b=other[name][a.columns].reset_index(drop=True)
-        pd.testing.assert_frame_equal(a,b,check_dtype=False,check_exact=True)
+        # Integer counts remain exact; percentages allow floating arithmetic noise only.
+        numeric_ratios=[col for col in a if col in ('avg_possession_pct','possession_pct')]
+        pd.testing.assert_frame_equal(a.drop(columns=numeric_ratios),b.drop(columns=numeric_ratios),check_dtype=False,check_exact=True)
+        if numeric_ratios:pd.testing.assert_frame_equal(a[numeric_ratios].astype('float64'),b[numeric_ratios].astype('float64'),check_dtype=False,check_exact=False,rtol=0,atol=1e-10)
     if int(sql['standings'].gf.sum())!=int(sql['standings'].ga.sum()):raise ValueError('Tổng bàn thắng/thua lệch')
     return sql

@@ -4,6 +4,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pandas as pd
 from .db import ROOT,DEFAULT_DB
 from .analysis import reconcile,scope,quality
 from .download import URL,SHA256
@@ -43,6 +44,14 @@ def analyze(db=DEFAULT_DB,as_of=None,out=None):
     else:notes+=['Chưa có trận đến mốc này; các đội giữ 0 trận.','Chưa đủ dữ liệu để nhận xét phong độ hoặc cú sút.']
     text='# Premier League 2025–2026\n\nDữ liệu trận đấu thật; báo cáo học tập.\n\n'+'\n\n'.join(f'{i}. {n}' for i,n in enumerate(notes,1))
     text+='\n\nNguồn: '+URL+'\n\nSHA256: `'+SHA256+'`\n\nSQL đã đối chiếu độc lập với pandas. Toàn file đã kiểm tra đủ 380 trận, 20 đội, 19 sân nhà + 19 sân khách mỗi đội.\n\nGiới hạn: bảng điểm tính từ kết quả (thắng 3, hòa 1), chưa có điều chỉnh hành chính/trừ điểm. Xếp hạng cùng điểm theo hiệu số rồi bàn thắng; đồng cả ba được cùng hạng (tên chỉ để hiển thị). Không tự xử lý đối đầu/play-off để quyết định quyền lợi chính thức. Mốc là hết ngày theo ngày nguồn, không phải bảng trực tiếp trong trận. Không có cầu thủ, xG, phút thi đấu hoặc vòng đấu chính thức; không suy vòng từ thứ tự ngày vì có đá bù. Cú sút thiếu giữ NULL, không đổi thành 0. Nguồn có thể sửa số liệu: bản này chốt snapshot, không tự cập nhật. Không suy nguyên nhân hoặc chất lượng tổng thể từ tương quan cú sút và bàn thắng.\n'
+    text+='\n## Kiểm soát bóng trung bình\n\nTrung bình cộng tỷ lệ từng trận có dữ liệu hợp lệ, mỗi trận trọng số bằng nhau; không phải tỷ lệ tính lại từ tổng thời gian giữ bóng. Trận thiếu hoặc xung đột giữ NULL, không thay bằng 0 hoặc suy từ cú sút. Chỉ dùng các trận đến mốc báo cáo.\n\n'
+    text+='| Đội | TB (%) | Trận có dữ liệu | Trận thiếu/xung đột |\n|---|---:|---:|---:|\n'
+    for r in s.itertuples():
+        pct='Chưa có' if pd.isna(r.avg_possession_pct) else f'{r.avg_possession_pct:.2f}'
+        text+=f'| {r.name} | {pct} | {int(r.possession_matches)} | {int(r.possession_missing)} |\n'
+    from .possession import manifest
+    spec=manifest()
+    text+='\nNguồn bổ sung: [FPL Core Insights](https://github.com/olbauday/FPL-Core-Insights), commit `'+spec['commit']+'`; từng SHA256 trong `docs/possession_source.json`. Snapshot đã đối chiếu đủ 380 trận, 379 hợp lệ; Liverpool–Man United ngày 19/10/2025 có tỷ số nguồn phụ không khớp nên loại riêng khỏi trung bình, không sửa tỷ số nguồn chính. Nếu chưa nhập nguồn bổ sung, các tỷ lệ để trống; chạy chuẩn bị với `--possession` hoặc chọn menu 7. Không gọi đây là dữ liệu kiểm soát bóng được Premier League xác minh chính thức.\n'
     (out/'report.md').write_text(text,encoding='utf-8')
     return out
 def main():
